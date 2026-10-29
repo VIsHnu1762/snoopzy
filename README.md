@@ -9,6 +9,17 @@ Real-world multiplayer hide and seek and battle royale, played with friends usin
 ## Docs
 
 - [Product plan](docs/PRODUCT_PLAN.md): vision, modes, rules engine, screens, architecture, data model, safety, roadmap and risks
+- [Game concept and rulebook](docs/GAME_CONCEPT_RULEBOOK.md)
+- [Hide & Seek Royale: modes, zone and roles](docs/HIDE_SEEK_ROYALE.md)
+- [MVP scope: what is necessary](docs/MVP_SCOPE.md)
+- [Complete feature list](docs/FEATURE_LIST.md)
+- [Technical design doc](docs/TECHNICAL_DESIGN.md)
+- [Device, permissions and risk guide](docs/DEVICE_PERMISSIONS_RISK.md)
+- [Games for every audience and region](docs/AUDIENCE_REGION.md)
+- [Coimbatore launch map analysis](docs/COIMBATORE_LAUNCH.md)
+- [Brand identity ideas](docs/BRAND_IDENTITY.md)
+
+Note: the feature list, audience, Coimbatore and MVP docs were exported as plain text, so their tables are less tidy than the others. Embedded diagrams are not included.
 
 ## Status
 
