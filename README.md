@@ -9,6 +9,8 @@ Real-world multiplayer hide and seek and battle royale, played with friends usin
 ## Docs
 
 - [Product plan](docs/PRODUCT_PLAN.md): vision, modes, rules engine, screens, architecture, data model, safety, roadmap and risks
+- [Core concept and MVP test plan](docs/CORE_CONCEPT.md): the one round that must be fun, and how we test it
+- [Competitor notes](docs/COMPETITORS.md): ShadowHunt and Manhunt compared
 - [Game concept and rulebook](docs/GAME_CONCEPT_RULEBOOK.md)
 - [Hide & Seek Royale: modes, zone and roles](docs/HIDE_SEEK_ROYALE.md)
 - [MVP scope: what is necessary](docs/MVP_SCOPE.md)
