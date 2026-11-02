@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0f1220">
+<title>Snoopzy</title>
+<style>
+  :root { --bg:#0f1220; --card:#181c30; --ink:#f2f4ff; --dim:#98a0c8; --hot:#ff4d6d; --ok:#2ee59d; --warn:#ffc233; --blue:#5b8cff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:16px/1.4 system-ui,sans-serif; overscroll-behavior:none; }
+  .screen { display:none; height:100%; flex-direction:column; padding:16px; padding-top:max(16px,env(safe-area-inset-top)); padding-bottom:max(16px,env(safe-area-inset-bottom)); }
+  .screen.on { display:flex; }
+  h1 { font-size:34px; margin:8px 0 2px; letter-spacing:-1px; } h1 span { color:var(--hot); }
+  p.sub { color:var(--dim); margin:0 0 18px; }
+  input,button { font:inherit; border-radius:14px; border:0; padding:14px 16px; }
+  input { background:var(--card); color:var(--ink); width:100%; margin-bottom:10px; text-transform:none; }
+  input.code { text-transform:uppercase; letter-spacing:6px; text-align:center; font-size:22px; }
+  button { background:var(--blue); color:#fff; font-weight:700; width:100%; margin-bottom:10px; }
+  button.alt { background:var(--card); color:var(--ink); }
+  button:disabled { opacity:.4; }
+  label.chk { display:flex; gap:10px; align-items:center; color:var(--dim); margin:4px 0 14px; font-size:14px; }
+  label.chk input { width:auto; margin:0; }
+  .err { color:var(--hot); min-height:22px; font-size:14px; }
+  .card { background:var(--card); border-radius:16px; padding:14px; margin-bottom:12px; }
+  .code-big { font-size:44px; font-weight:800; letter-spacing:10px; text-align:center; }
+  .row { display:flex; align-items:center; gap:10px; padding:6px 0; }
+  .dot { width:12px; height:12px; border-radius:50%; background:var(--ok); flex:none; }
+  .tag { font-size:12px; padding:2px 8px; border-radius:99px; background:#2a3050; color:var(--dim); margin-left:auto; }
+  #top { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+  #timer { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .badge { padding:4px 12px; border-radius:99px; font-weight:700; font-size:14px; }
+  .seeker { background:var(--hot); } .hider { background:var(--ok); color:#06210f; } .spec { background:#444a6e; }
+  #banner { min-height:24px; text-align:center; font-weight:700; margin-bottom:6px; }
+  #banner.warn { color:var(--warn); } #banner.bad { color:var(--hot); }
+  canvas { width:100%; flex:1; min-height:0; background:#0b0e1b; border-radius:18px; touch-action:none; }
+  #holdWrap { display:flex; gap:10px; margin-top:10px; align-items:stretch; }
+  #hold { flex:1; height:84px; font-size:20px; margin:0; position:relative; overflow:hidden; user-select:none; -webkit-user-select:none; touch-action:none; }
+  #hold .bar { position:absolute; left:0; top:0; bottom:0; width:0; background:rgba(255,255,255,.28); transition:width .25s linear; }
+  #hold span { position:relative; }
+  #demo { display:none; grid-template-columns:repeat(3,52px); grid-template-rows:repeat(2,40px); gap:4px; }
+  #demo button { padding:0; margin:0; border-radius:10px; background:var(--card); }
+  #demo .up { grid-column:2; }
+  #toast { position:fixed; left:50%; top:max(12px,env(safe-area-inset-top)); transform:translateX(-50%); background:#000c; padding:10px 16px; border-radius:99px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:9; }
+  #toast.on { opacity:1; }
+  .tl { font-size:14px; color:var(--dim); padding:3px 0; }
+  .big { font-size:30px; font-weight:800; text-align:center; margin:6px 0; }
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<section id="home" class="screen on">
+  <h1>Snoop<span>zy</span></h1>
+  <p class="sub">Real-world hide and seek. The zone is closing.</p>
+  <input id="name" placeholder="Your name" maxlength="16" autocomplete="nickname">
+  <button id="create">Create a room</button>
+  <label class="chk"><input type="checkbox" id="practice" checked> Practice room (3-minute round, simulated GPS allowed)</label>
+  <input id="joinCode" class="code" placeholder="CODE" maxlength="4" autocapitalize="characters">
+  <button id="join" class="alt">Join with code</button>
+  <div class="err" id="homeErr"></div>
+</section>
+
+<section id="lobby" class="screen">
+  <p class="sub" style="margin-bottom:4px">Room code</p>
+  <div class="code-big" id="lobbyCode">----</div>
+  <div class="card" id="lobbyPlayers"></div>
+  <div class="card" style="font-size:14px;color:var(--dim)" id="gpsStatus">Waiting for GPS…</div>
+  <label class="chk" id="demoRow" style="display:none"><input type="checkbox" id="demoToggle"> Use simulated GPS (walk with arrow keys / buttons)</label>
+  <button id="start" style="display:none">Start round</button>
+  <div class="sub" id="waitHost" style="text-align:center;display:none">Waiting for the host to start…</div>
+  <div class="err" id="lobbyErr"></div>
+</section>
+
+<section id="game" class="screen">
+  <div id="top"><span class="badge" id="roleBadge">-</span><span id="timer">0:00</span><span class="badge spec" id="shields">-</span></div>
+  <div id="banner"></div>
+  <canvas id="map"></canvas>
+  <div id="holdWrap">
+    <button id="hold"><div class="bar"></div><span id="holdLabel">HOLD</span></button>
+    <div id="demo">
+      <button class="up" data-d="n">▲</button><span></span><span></span>
+      <button data-d="w">◀</button><button data-d="s">▼</button><button data-d="e">▶</button>
+    </div>
+  </div>
+</section>
+
+<section id="over" class="screen" style="overflow:auto">
+  <div class="big" id="winner">-</div>
+  <div class="card" id="recapStats"></div>
+  <div class="card" id="recapLines"></div>
+  <button id="again" style="display:none">Next round (new seeker)</button>
+  <div class="sub" id="waitAgain" style="text-align:center;display:none">Waiting for the host…</div>
+</section>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const show = (id) => { document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('on', s.id === id)); };
+let ws, me = null, code = null, state = null, prev = null, offset = 0;
+let gps = null;            // latest real fix
+let demo = null;           // simulated fix {lat,lng}
+let demoOn = false;
+const DEMO_BASE = { lat: 11.0168, lng: 76.9558 }; // Coimbatore
+
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2600); if (navigator.vibrate) navigator.vibrate(120); }
+const send = (m) => ws && ws.readyState === 1 && ws.send(JSON.stringify(m));
+
+function connect(first) {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+  ws.onopen = () => {
+    if (first) send(first);
+    else if (code && me) send({ t: 'rejoin', code, id: me });
+  };
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.t === 'joined') { me = m.id; code = m.code; sessionStorage.setItem('snoopzy', JSON.stringify({ code, me })); $('lobbyCode').textContent = code; show('lobby'); startGps(); }
+    else if (m.t === 'error') { if (m.message === 'Room not found') { sessionStorage.removeItem('snoopzy'); code = null; me = null; show('home'); } $('homeErr').textContent = m.message; $('lobbyErr').textContent = m.message; }
+    else if (m.t === 'state') { offset = m.state.now - Date.now(); prev = state; state = m.state; render(); }
+  };
+  ws.onclose = () => { if (code) setTimeout(() => connect(), 1500); };
+}
+
+$('create').onclick = () => { $('homeErr').textContent = ''; connect({ t: 'create', name: $('name').value.trim() || 'Player', practice: $('practice').checked }); };
+$('join').onclick = () => { $('homeErr').textContent = ''; connect({ t: 'join', code: $('joinCode').value.trim(), name: $('name').value.trim() || 'Player' }); };
+$('start').onclick = () => { $('lobbyErr').textContent = ''; send({ t: 'start' }); };
+$('again').onclick = () => send({ t: 'next' });
+$('demoToggle').onchange = (e) => { demoOn = e.target.checked; if (demoOn && !demo) demo = { ...DEMO_BASE }; };
+
+// ---- location -------------------------------------------------------------
+let watching = false;
+function startGps() {
+  if (watching || !navigator.geolocation) { if (!navigator.geolocation) $('gpsStatus').textContent = 'This browser has no GPS.'; return; }
+  watching = true;
+  navigator.geolocation.watchPosition(
+    (p) => { gps = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }; },
+    (e) => { $('gpsStatus').textContent = 'GPS blocked or unavailable: ' + e.message; },
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 });
+}
+setInterval(() => {
+  if (!state && !code) return;
+  if (demoOn && demo) send({ t: 'pos', lat: demo.lat, lng: demo.lng, acc: 4, demo: true });
+  else if (gps) send({ t: 'pos', lat: gps.lat, lng: gps.lng, acc: gps.acc });
+}, 1000);
+
+// simulated walking
+const held = new Set();
+const STEP = 1.6; // metres per 200 ms (~8 m/s is a sprint; this is a fast walk)
+const mLat = 1 / 111320, mLng = (lat) => 1 / (111320 * Math.cos(lat * Math.PI / 180));
+setInterval(() => {
+  if (!demoOn || !demo || !held.size) return;
+  if (held.has('n')) demo.lat += STEP * mLat; if (held.has('s')) demo.lat -= STEP * mLat;
+  if (held.has('e')) demo.lng += STEP * mLng(demo.lat); if (held.has('w')) demo.lng -= STEP * mLng(demo.lat);
+}, 200);
+document.querySelectorAll('#demo button').forEach((b) => {
+  const d = b.dataset.d;
+  b.onpointerdown = (e) => { e.preventDefault(); held.add(d); };
+  ['onpointerup', 'onpointerleave', 'onpointercancel'].forEach((ev) => (b[ev] = () => held.delete(d)));
+});
+const KEYS = { ArrowUp: 'n', ArrowDown: 's', ArrowLeft: 'w', ArrowRight: 'e', w: 'n', s: 's', a: 'w', d: 'e' };
+addEventListener('keydown', (e) => { if (KEYS[e.key] && e.target.tagName !== 'INPUT') held.add(KEYS[e.key]); });
+addEventListener('keyup', (e) => { if (KEYS[e.key]) held.delete(KEYS[e.key]); });
+
+// ---- hold button ----------------------------------------------------------
+const hold = $('hold');
+let holding = false;
+function holdKind() { return state?.role === 'seeker' ? 'tag' : 'revive'; }
+hold.onpointerdown = (e) => { e.preventDefault(); if (hold.disabled) return; holding = true; hold.setPointerCapture?.(e.pointerId); send({ t: 'hold', kind: holdKind() }); };
+const release = () => { if (!holding) return; holding = false; send({ t: 'release' }); };
+['onpointerup', 'onpointercancel'].forEach((ev) => (hold[ev] = release));
+hold.oncontextmenu = (e) => e.preventDefault();
+
+// ---- rendering ------------------------------------------------------------
+const fmt = (ms) => { ms = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(ms / 60) + ':' + String(ms % 60).padStart(2, '0'); };
+const nowMs = () => Date.now() + offset;
+
+function render() {
+  const s = state;
+  if (s.phase === 'lobby') {
+    show('lobby');
+    $('lobbyPlayers').innerHTML = s.players.map((p) => `<div class="row"><span class="dot"></span>${esc(p.name)}${p.id === s.host ? '<span class="tag">host</span>' : ''}</div>`).join('');
+    const isHost = s.host === s.you;
+    $('start').style.display = isHost ? 'block' : 'none';
+    $('start').disabled = s.players.length < 2;
+    $('start').textContent = s.players.length < 2 ? 'Need at least 2 players' : 'Start round';
+    $('waitHost').style.display = isHost ? 'none' : 'block';
+    $('demoRow').style.display = 'flex';
+    $('gpsStatus').textContent = gps ? `GPS ready (±${Math.round(gps.acc)} m)` : (demoOn ? 'Using simulated GPS' : 'Waiting for GPS…');
+    return;
+  }
+  if (s.phase === 'over') {
+    show('over');
+    const mine = s.role === 'seeker' ? 'seeker' : 'hiders';
+    $('winner').textContent = s.winner === mine ? (s.winner === 'seeker' ? 'You found everyone' : 'Your side won') : (s.winner === 'seeker' ? 'The seeker found everyone' : 'The hiders held out');
+    const r = s.recap;
+    $('recapStats').innerHTML = `<div>${r.stats.tags} caught · ${r.stats.revives} revived · ${r.stats.zoneOuts} lost to the zone</div><div class="sub" style="margin:4px 0 0">Round lasted ${fmt(r.durationMs)}${r.topSaver ? ` · Best friend: ${esc(r.topSaver.name)} (${r.topSaver.n} saves)` : ''}</div>`;
+    $('recapLines').innerHTML = r.timeline.length ? r.timeline.map((l) => `<div class="tl">${fmt(l.t)} — ${esc(l.text)}</div>`).join('') : '<div class="tl">Nobody got caught.</div>';
+    const isHost = s.host === s.you;
+    $('again').style.display = isHost ? 'block' : 'none';
+    $('waitAgain').style.display = isHost ? 'none' : 'block';
+    return;
+  }
+  show('game');
+  // toasts from changes
+  if (prev && prev.phase !== 'lobby') {
+    for (const p of s.players) {
+      const o = prev.players.find((x) => x.id === p.id);
+      if (!o) continue;
+      if (o.status !== p.status) {
+        if (p.status === 'caught') toast(p.id === s.you ? 'You were caught. A friend can revive you.' : `${p.name} was caught`);
+        else if (p.status === 'alive' && o.status === 'caught') toast(p.id === s.you ? 'You were revived!' : `${p.name} was revived`);
+        else if (p.status === 'out') toast(`${p.name} was caught outside the zone`);
+      }
+    }
+    if (prev.phase === 'hide' && s.phase === 'hunt') toast('The hunt is on');
+  }
+  const badge = $('roleBadge');
+  const spectating = s.status === 'caught' || s.status === 'out';
+  badge.className = 'badge ' + (spectating ? 'spec' : s.role);
+  badge.textContent = spectating ? (s.status === 'out' ? 'Out' : 'Caught') : s.role === 'seeker' ? 'Seeker' : 'Hider';
+  $('shields').textContent = s.role === 'hider' ? `🛡 ${s.shields}` : (s.role === 'seeker' ? '👁' : '-');
+  tickUi();
+}
+
+function tickUi() {
+  const s = state; if (!s || s.phase === 'lobby' || s.phase === 'over') return;
+  const t = nowMs();
+  const inHide = s.phase === 'hide';
+  $('timer').textContent = inHide ? fmt(s.hideEndsAt - t) : fmt(s.huntEndsAt - t);
+  const b = $('banner'); b.className = ''; let text = '';
+  const z = s.zone;
+  if (inHide) text = s.role === 'seeker' ? 'Eyes closed. Hiders are scattering.' : 'Hide! The seeker is locked for ' + fmt(s.hideEndsAt - t);
+  else if (z.warning && z.nextAtMs) { text = `Zone shrinks in ${fmt(z.nextAtMs - t)}`; b.className = 'warn'; }
+  else if (s.role === 'hider' && s.seekerBand && s.status === 'alive') text = `Seeker is ${s.seekerBand}`;
+  else if (s.role === 'seeker' && s.pingUntil && t < s.pingUntil) text = 'Ping! A hider just showed up.';
+  const me = s.players.find((p) => p.id === s.you);
+  if (me?.pos && z && me.status === 'alive' && dist(me.pos, z.center) > z.radius) { text = 'You are outside the zone! Get back in!'; b.className = 'bad'; }
+  if (me?.status === 'caught') text = s.role === 'hider' ? 'Caught. Wait for a friend to revive you.' : text;
+  b.textContent = text;
+  // hold button
+  const canTag = s.role === 'seeker' && s.phase === 'hunt' && s.status === 'alive';
+  const caught = s.players.some((p) => p.role === 'hider' && p.status === 'caught');
+  const canRev = s.role === 'hider' && s.phase === 'hunt' && s.status === 'alive' && s.shields > 0 && caught;
+  hold.disabled = !(canTag || canRev);
+  $('holdLabel').textContent = canTag ? 'HOLD TO TAG' : canRev ? 'HOLD TO REVIVE' : (spectatingText(s));
+  hold.style.background = canTag ? 'var(--hot)' : canRev ? 'var(--ok)' : 'var(--card)';
+  hold.style.color = canRev ? '#06210f' : '#fff';
+  hold.querySelector('.bar').style.width = (s.hold ? s.hold.progress * 100 : 0) + '%';
+  $('demo').style.display = demoOn ? 'grid' : 'none';
+  draw();
+}
+const spectatingText = (s) => s.status !== 'alive' ? 'You are out of the round' : s.role === 'seeker' ? 'Waiting for the hunt' : 'Stay hidden';
+setInterval(tickUi, 250);
+
+const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function dist(a, b) {
+  const r = (d) => d * Math.PI / 180, R = 6371000;
+  const x = Math.sin(r(b.lat - a.lat) / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(r(b.lng - a.lng) / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+
+const cv = $('map'), ctx = cv.getContext('2d');
+function draw() {
+  const s = state; if (!s?.zone) return;
+  const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const z = s.zone, c = z.center;
+  const startR = Math.max(z.radius, s.zone.nextRadius ?? 0);
+  const scale = Math.min(w, h) / 2 / (Math.max(startR, 30) * 1.25); // px per metre
+  const toXY = (p) => ({ x: w / 2 + (p.lng - c.lng) * 111320 * Math.cos(c.lat * Math.PI / 180) * scale, y: h / 2 - (p.lat - c.lat) * 111320 * scale });
+  // outside = red tint, inside = clear
+  ctx.fillStyle = 'rgba(255,77,109,.18)'; ctx.fillRect(0, 0, w, h);
+  ctx.save(); ctx.beginPath(); ctx.arc(w / 2, h / 2, z.radius * scale, 0, 7); ctx.clip(); ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#12172b'; ctx.fillRect(0, 0, w, h); ctx.restore();
+  ctx.strokeStyle = z.warning ? '#ffc233' : '#7f8bd0'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(w / 2, h / 2, z.radius * scale, 0, 7); ctx.stroke();
+  if (z.warning && z.nextRadius != null) { ctx.setLineDash([6, 6]); ctx.strokeStyle = '#ffc233'; ctx.beginPath(); ctx.arc(w / 2, h / 2, z.nextRadius * scale, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+  // scale label
+  ctx.fillStyle = '#98a0c8'; ctx.font = '12px system-ui'; ctx.fillText(`zone ${Math.round(z.radius)} m`, 10, h - 10);
+  for (const p of s.players) {
+    if (!p.pos) continue;
+    const { x, y } = toXY(p.pos);
+    const self = p.id === s.you;
+    if (p.pos.acc) { ctx.fillStyle = 'rgba(91,140,255,.12)'; ctx.beginPath(); ctx.arc(x, y, Math.max(4, p.pos.acc * scale), 0, 7); ctx.fill(); }
+    ctx.fillStyle = p.status === 'caught' ? '#667' : p.status === 'out' ? '#444' : p.role === 'seeker' ? '#ff4d6d' : self ? '#5b8cff' : '#2ee59d';
+    ctx.beginPath(); ctx.arc(x, y, self ? 9 : 7, 0, 7); ctx.fill();
+    if (self) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+    ctx.fillStyle = '#fff'; ctx.font = '12px system-ui'; ctx.textAlign = 'center'; ctx.fillText(self ? 'you' : p.name, x, y - 13);
+    if (p.status === 'caught') ctx.fillText('caught', x, y + 22);
+    ctx.textAlign = 'start';
+  }
+}
+addEventListener('resize', draw);
+
+// reconnect after refresh
+try {
+  const saved = JSON.parse(sessionStorage.getItem('snoopzy') || 'null');
+  if (saved) { code = saved.code; me = saved.me; connect(); }
+} catch {}
+</script>
+</body>
+</html>

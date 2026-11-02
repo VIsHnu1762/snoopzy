@@ -1,0 +1,14 @@
+{
+  "name": "snoopzy",
+  "version": "0.1.0",
+  "description": "Snoopzy: real-world hide and seek with a shrinking zone (web prototype of the core round)",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js",
+    "simulate": "node test/simulate.js"
+  },
+  "dependencies": { "ws": "^8.18.0" },
+  "license": "UNLICENSED",
+  "private": true
+}
